@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phone Order Entry</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f5f5; }
+    .container { max-width: 600px; margin: 40px auto; background:#fff; padding: 20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
+    h1 { text-align:center; margin-bottom:20px; }
+    .form-group { margin-bottom:15px; }
+    label { display:block; margin-bottom:5px; font-weight:bold; }
+    input[type="text"], input[type="tel"], input[type="date"] {
+      width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
+    }
+    .qty-control { display:flex; align-items:center; gap:10px; margin-top:5px; }
+    .qty-control button {
+      width:30px; height:30px; border:none; border-radius:4px; background:#007bff; color:#fff; font-size:20px; cursor:pointer;
+    }
+    .qty-control input {
+      width:50px; text-align:center; padding:5px; border:1px solid #ccc; border-radius:4px;
+    }
+    button.submit {
+      width:100%; padding:10px; border:none; background:#28a745; color:#fff; font-size:16px; border-radius:4px; cursor:pointer; margin-top:20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Phone Order</h1>
+    <div class="form-group">
+      <label for="customerName">Name</label>
+      <input id="customerName" type="text" placeholder="Customer name">
+    </div>
+    <div class="form-group">
+      <label for="address">Address</label>
+      <input id="address" type="text" placeholder="Street address">
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone</label>
+      <input id="phone" type="tel" placeholder="555-123-4567">
+    </div>
+    <div class="form-group">
+      <label for="orderDate">Order Date</label>
+      <input id="orderDate" type="date">
+    </div>
+    <div class="form-group">
+      <label>Item Name</label>
+      <input id="itemName" type="text" placeholder="Product">
+    </div>
+    <div class="form-group">
+      <label>Quantity</label>
+      <div class="qty-control">
+        <span>Bottles:</span>
+        <button type="button" class="minus-bottle">-</button>
+        <input id="bottleQty" type="number" value="0" min="0">
+        <button type="button" class="plus-bottle">+</button>
+      </div>
+      <div class="qty-control">
+        <span>Cases:</span>
+        <button type="button" class="minus-case">-</button>
+        <input id="caseQty" type="number" value="0" min="0">
+        <button type="button" class="plus-case">+</button>
+      </div>
+    </div>
+    <button class="submit" onclick="submitOrder()">Submit Order</button>
+  </div>
+<script>
+// Default date to today
+const dateInput = document.getElementById('orderDate');
+dateInput.valueAsNumber = Date.now() - new Date().getTimezoneOffset() * 60000;
+
+function adjustQty(inputId, delta) {
+  const input = document.getElementById(inputId);
+  let value = parseInt(input.value, 10) || 0;
+  value += delta;
+  if (value < 0) value = 0;
+  input.value = value;
+}
+
+document.querySelector('.plus-bottle').addEventListener('click', () => adjustQty('bottleQty', 1));
+document.querySelector('.minus-bottle').addEventListener('click', () => adjustQty('bottleQty', -1));
+document.querySelector('.plus-case').addEventListener('click', () => adjustQty('caseQty', 1));
+document.querySelector('.minus-case').addEventListener('click', () => adjustQty('caseQty', -1));
+
+function submitOrder() {
+  const order = {
+    name: document.getElementById('customerName').value,
+    address: document.getElementById('address').value,
+    phone: document.getElementById('phone').value,
+    date: document.getElementById('orderDate').value,
+    item: document.getElementById('itemName').value,
+    bottles: document.getElementById('bottleQty').value,
+    cases: document.getElementById('caseQty').value
+  };
+  console.log('Order submitted', order);
+  alert('Order saved to console.');
+}
+</script>
+</body>
+</html>
