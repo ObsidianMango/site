@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Car Dodging Game</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #222;
+    font-family: sans-serif;
+    touch-action: none;
+  }
+  #game {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  #player {
+    width: 60px;
+    height: 100px;
+    background: red;
+    border-radius: 10px;
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    margin-left: -30px;
+    transition: left 0.2s;
+  }
+  .obstacle {
+    width: 60px;
+    height: 100px;
+    background: gray;
+    border-radius: 10px;
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+  }
+  #score {
+    position: absolute;
+    color: #fff;
+    top: 10px;
+    left: 10px;
+    font-size: 20px;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="score">Score: 0</div>
+  <div id="player"></div>
+</div>
+<script>
+(function() {
+  const lanes = [];
+  const game = document.getElementById('game');
+  const player = document.getElementById('player');
+  const scoreEl = document.getElementById('score');
+  let lane = 1;
+  let score = 0;
+  let speed = 4;
+
+  function resize() {
+    const w = window.innerWidth;
+    lanes[0] = w * 0.2 - 30;
+    lanes[1] = w * 0.5 - 30;
+    lanes[2] = w * 0.8 - 30;
+    movePlayer(lane);
+  }
+
+  function movePlayer(l) {
+    lane = l;
+    player.style.left = lanes[l] + 'px';
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+
+  // keyboard control
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft' && lane > 0) movePlayer(lane - 1);
+    if (e.key === 'ArrowRight' && lane < 2) movePlayer(lane + 1);
+  });
+
+  // swipe control
+  let touchStartX = null;
+  game.addEventListener('touchstart', function(e){
+    touchStartX = e.changedTouches[0].clientX;
+  });
+  game.addEventListener('touchend', function(e){
+    if (touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 30) {
+      if (dx > 0 && lane < 2) movePlayer(lane + 1);
+      if (dx < 0 && lane > 0) movePlayer(lane - 1);
+    }
+    touchStartX = null;
+  });
+
+  function spawnObstacle() {
+    const obs = document.createElement('div');
+    obs.className = 'obstacle';
+    const l = Math.floor(Math.random() * 3);
+    obs.dataset.lane = l;
+    obs.style.left = lanes[l] + 'px';
+    game.appendChild(obs);
+    let y = window.innerHeight;
+    function step() {
+      y -= speed;
+      obs.style.bottom = y + 'px';
+      if (y < -120) {
+        game.removeChild(obs);
+        score++;
+        scoreEl.textContent = 'Score: ' + score;
+        return;
+      }
+      // collision check
+      const carY = 110; // approx bottom position of car
+      if (l == lane && y < carY + 100 && y > carY - 100) {
+        alert('Crash! Score: ' + score);
+        window.location.reload();
+        return;
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  setInterval(spawnObstacle, 1200);
+})();
+</script>
+</body>
+</html>
