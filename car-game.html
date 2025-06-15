@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Car Dodging Game</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #111;
+    font-family: sans-serif;
+    touch-action: none;
+  }
+  #game {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    perspective: 700px;
+    background: #222;
+  }
+  #road {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 200%;
+    transform-origin: bottom;
+    transform: rotateX(60deg);
+    background: linear-gradient(#333, #222);
+  }
+  .lane-line {
+    position: absolute;
+    bottom: 0;
+    width: 4px;
+    height: 200%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.6) 0,
+      rgba(255,255,255,0.6) 20px,
+      transparent 20px,
+      transparent 40px
+    );
+    transform-origin: bottom;
+    transform: rotateX(60deg);
+  }
+  .lane-line:first-child { left: 33.3%; }
+  .lane-line:last-child { left: 66.6%; }
+
+  #player, .obstacle {
+    position: absolute;
+    bottom: 60px;
+    width: 60px;
+    height: 100px;
+    transform: translateX(-50%);
+    border-radius: 8px;
+  }
+  #player {
+    background: red;
+    box-shadow: 0 0 15px #f00;
+  }
+  .obstacle {
+    background: gray;
+    bottom: 100%;
+    box-shadow: 0 0 10px #000;
+  }
+  #score {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    font-size: 20px;
+    z-index: 1;
+  }
+  #instructions {
+    position: absolute;
+    bottom: 10px;
+    width: 100%;
+    text-align: center;
+    color: #ccc;
+    font-size: 14px;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="road"></div>
+  <div class="lane-line"></div>
+  <div class="lane-line"></div>
+  <div id="score">Score: 0</div>
+  <div id="player"></div>
+  <div id="instructions">Swipe or use ←/→</div>
+</div>
+<script>
+(function() {
+  const game = document.getElementById('game');
+  const player = document.getElementById('player');
+  const scoreEl = document.getElementById('score');
+  const laneX = [];
+  let currentLane = 1;
+  let score = 0;
+  let speed = 5;
+
+  function resize() {
+    const w = game.clientWidth;
+    laneX[0] = w * 0.25;
+    laneX[1] = w * 0.5;
+    laneX[2] = w * 0.75;
+    movePlayer(currentLane);
+  }
+
+  function movePlayer(l) {
+    currentLane = l;
+    player.style.left = laneX[l] + 'px';
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft' && currentLane > 0) movePlayer(currentLane - 1);
+    if (e.key === 'ArrowRight' && currentLane < 2) movePlayer(currentLane + 1);
+  });
+
+  let startX = null;
+  game.addEventListener('touchstart', function(e){
+    startX = e.changedTouches[0].clientX;
+  });
+  game.addEventListener('touchend', function(e){
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 30) {
+      if (dx < 0 && currentLane > 0) movePlayer(currentLane - 1);
+      if (dx > 0 && currentLane < 2) movePlayer(currentLane + 1);
+    }
+    startX = null;
+  });
+
+  function spawnObstacle() {
+    const obs = document.createElement('div');
+    obs.className = 'obstacle';
+    const l = Math.floor(Math.random() * 3);
+    obs.dataset.lane = l;
+    obs.style.left = laneX[l] + 'px';
+    let y = game.clientHeight;
+
+    function step() {
+      y -= speed;
+      obs.style.bottom = y + 'px';
+      if (y < -120) {
+        obs.remove();
+        score++;
+        scoreEl.textContent = 'Score: ' + score;
+        return;
+      }
+      const carY = 60;
+      if (l === currentLane && y < carY + 100 && y > carY - 100) {
+        alert('Crash! Score: ' + score);
+        window.location.reload();
+        return;
+      }
+      requestAnimationFrame(step);
+    }
+    game.appendChild(obs);
+    requestAnimationFrame(step);
+  }
+
+  setInterval(spawnObstacle, 1000);
+})();
+</script>
+</body>
+</html>
