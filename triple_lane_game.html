@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triple Lane Car Game</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            touch-action: none; /* allow custom swipe handling */
+        }
+        canvas {
+            display: block;
+        }
+        #overlay {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-shadow: 0 0 5px #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="overlay">Swipe left/right or use arrow keys to change lanes</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // lighting
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+        scene.add(light);
+
+        // lanes
+        const lanePositions = [-2, 0, 2];
+        const roadGeom = new THREE.PlaneGeometry(6, 200);
+        const roadMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        const road = new THREE.Mesh(roadGeom, roadMat);
+        road.rotation.x = -Math.PI / 2;
+        road.position.z = -90;
+        scene.add(road);
+
+        // car
+        const carGeom = new THREE.BoxGeometry(1, 0.5, 2);
+        const carMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+        const car = new THREE.Mesh(carGeom, carMat);
+        car.position.set(lanePositions[1], 0.25, 3);
+        scene.add(car);
+
+        camera.position.set(0, 4, 8);
+        camera.lookAt(0, 0, 0);
+
+        const obstacles = [];
+        let lastSpawn = 0;
+        const spawnInterval = 1000; // ms
+        const speed = 0.05;
+        let currentLane = 1;
+        let running = true;
+
+        function spawnObstacle() {
+            const geom = new THREE.BoxGeometry(1, 0.5, 2);
+            const mat = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+            const obs = new THREE.Mesh(geom, mat);
+            const lane = Math.floor(Math.random() * 3);
+            obs.position.set(lanePositions[lane], 0.25, -50);
+            scene.add(obs);
+            obstacles.push(obs);
+        }
+
+        function update(timestamp) {
+            if (!running) return;
+            if (timestamp - lastSpawn > spawnInterval) {
+                spawnObstacle();
+                lastSpawn = timestamp;
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.position.z += speed * 5;
+                if (obs.position.z > 5) {
+                    scene.remove(obs);
+                    obstacles.splice(i, 1);
+                } else {
+                    // collision check
+                    if (Math.abs(obs.position.z - car.position.z) < 1.5 &&
+                        Math.abs(obs.position.x - car.position.x) < 0.5) {
+                        running = false;
+                        document.getElementById('overlay').textContent = 'Game Over';
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+            requestAnimationFrame(update);
+        }
+        requestAnimationFrame(update);
+
+        function moveLeft() {
+            if (currentLane > 0) {
+                currentLane--;
+                car.position.x = lanePositions[currentLane];
+            }
+        }
+        function moveRight() {
+            if (currentLane < lanePositions.length - 1) {
+                currentLane++;
+                car.position.x = lanePositions[currentLane];
+            }
+        }
+
+        // keyboard controls
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') moveLeft();
+            if (e.key === 'ArrowRight') moveRight();
+        });
+
+        // swipe controls
+        let touchStartX = 0;
+        window.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+        });
+        window.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) > 30) {
+                if (dx < 0) moveLeft();
+                else moveRight();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
