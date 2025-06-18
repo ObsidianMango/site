@@ -5,15 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Triple Lane Car Game</title>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            touch-action: none; /* allow custom swipe handling */
-        }
-        canvas {
-            display: block;
-        }
+        body, html { margin: 0; padding: 0; overflow: hidden; touch-action: none; }
+        canvas { display: block; }
         #overlay {
             position: absolute;
             top: 20px;
@@ -23,11 +16,12 @@
             font-family: Arial, sans-serif;
             font-size: 24px;
             text-shadow: 0 0 5px #000;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div id="overlay">Swipe left/right or use arrow keys to change lanes</div>
+    <div id="overlay">Tap or press space to start. Swipe or use arrow keys to change lanes</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         const scene = new THREE.Scene();
@@ -36,11 +30,47 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // animated gradient sky
+        const skyUniforms = {
+            topColor: { value: new THREE.Color(0x3377ff) },
+            bottomColor: { value: new THREE.Color(0xff6600) },
+            time: { value: 0 }
+        };
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: skyUniforms,
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 wp = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = wp.xyz;
+                    gl_Position = projectionMatrix * viewMatrix * wp;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float time;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition).y * 0.5 + 0.5;
+                    float t = sin(time * 0.05) * 0.5 + 0.5;
+                    vec3 color = mix(bottomColor, topColor, h);
+                    color.b += t * 0.2;
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `,
+            side: THREE.BackSide,
+            depthWrite: false
+        });
+        const skyGeo = new THREE.SphereGeometry(400, 32, 15);
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        scene.add(sky);
+
         // lighting
         const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
         scene.add(light);
 
-        // lanes
+        // road and ground
         const lanePositions = [-2, 0, 2];
         const roadGeom = new THREE.PlaneGeometry(6, 200);
         const roadMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
@@ -49,59 +79,147 @@
         road.position.z = -90;
         scene.add(road);
 
-        // car
-        const carGeom = new THREE.BoxGeometry(1, 0.5, 2);
-        const carMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-        const car = new THREE.Mesh(carGeom, carMat);
-        car.position.set(lanePositions[1], 0.25, 3);
+        // grass
+        const grassGeom = new THREE.PlaneGeometry(50, 200);
+        const grassMat = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+        const grassLeft = new THREE.Mesh(grassGeom, grassMat);
+        grassLeft.rotation.x = -Math.PI / 2;
+        grassLeft.position.set(-15, 0, -90);
+        scene.add(grassLeft);
+        const grassRight = grassLeft.clone();
+        grassRight.position.x = 15;
+        scene.add(grassRight);
+
+        // lane dotted lines
+        function addLaneLines() {
+            const lineMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 1, gapSize: 1 });
+            for (const x of [-1, 1]) {
+                const points = [];
+                for (let z = 0; z >= -200; z -= 4) {
+                    points.push(new THREE.Vector3(x, 0.01, z));
+                    points.push(new THREE.Vector3(x, 0.01, z - 2));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.LineSegments(geo, lineMat);
+                line.computeLineDistances();
+                scene.add(line);
+            }
+        }
+        addLaneLines();
+
+        // trees
+        function createTree(x, z) {
+            const trunkGeom = new THREE.CylinderGeometry(0.1, 0.1, 1);
+            const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+            const crownGeom = new THREE.SphereGeometry(0.5, 8, 8);
+            const crownMat = new THREE.MeshPhongMaterial({ color: 0x2E8B57 });
+            const crown = new THREE.Mesh(crownGeom, crownMat);
+            crown.position.y = 0.8;
+            const tree = new THREE.Group();
+            tree.add(trunk);
+            tree.add(crown);
+            tree.position.set(x, 0.5, z);
+            scene.add(tree);
+        }
+        for (let z = -10; z > -190; z -= 20) {
+            createTree(-7 + Math.random() * 1, z);
+            createTree(7 - Math.random() * 1, z - 10);
+        }
+
+        // car model
+        function createCar(color) {
+            const car = new THREE.Group();
+            const bodyGeom = new THREE.BoxGeometry(1, 0.5, 2);
+            const bodyMat = new THREE.MeshPhongMaterial({ color });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            body.position.y = 0.25;
+            car.add(body);
+
+            const cabinGeom = new THREE.BoxGeometry(0.8, 0.4, 1);
+            const cabin = new THREE.Mesh(cabinGeom, bodyMat);
+            cabin.position.set(0, 0.65, 0);
+            car.add(cabin);
+
+            const wheelGeom = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16);
+            const wheelMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+            for (const x of [-0.35, 0.35]) {
+                for (const z of [-0.7, 0.7]) {
+                    const wheel = new THREE.Mesh(wheelGeom, wheelMat);
+                    wheel.rotation.z = Math.PI / 2;
+                    wheel.position.set(x, 0.1, z);
+                    car.add(wheel);
+                }
+            }
+            return car;
+        }
+        const car = createCar(0xff0000);
+        car.position.set(lanePositions[1], 0, 3);
         scene.add(car);
 
         camera.position.set(0, 4, 8);
         camera.lookAt(0, 0, 0);
 
+        const overlayElem = document.getElementById('overlay');
         const obstacles = [];
         let lastSpawn = 0;
-        const spawnInterval = 1000; // ms
+        const spawnInterval = 1200;
         const speed = 0.05;
         let currentLane = 1;
-        let running = true;
+        let running = false;
+        let gameOver = false;
+        let lastTime = 0;
+        let score = 0;
+
+        function startGame() {
+            obstacles.forEach(o => scene.remove(o));
+            obstacles.length = 0;
+            car.position.set(lanePositions[1], 0, 3);
+            currentLane = 1;
+            lastSpawn = 0;
+            lastTime = performance.now();
+            score = 0;
+            overlayElem.textContent = '';
+            running = true;
+            gameOver = false;
+            requestAnimationFrame(update);
+        }
 
         function spawnObstacle() {
-            const geom = new THREE.BoxGeometry(1, 0.5, 2);
-            const mat = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-            const obs = new THREE.Mesh(geom, mat);
+            const obs = createCar(0x00ff00);
             const lane = Math.floor(Math.random() * 3);
-            obs.position.set(lanePositions[lane], 0.25, -50);
+            obs.position.set(lanePositions[lane], 0, -50);
             scene.add(obs);
             obstacles.push(obs);
         }
 
         function update(timestamp) {
             if (!running) return;
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+            skyUniforms.time.value = timestamp / 1000;
+            score += dt * speed;
+            overlayElem.textContent = 'Score: ' + Math.floor(score / 10);
             if (timestamp - lastSpawn > spawnInterval) {
                 spawnObstacle();
                 lastSpawn = timestamp;
             }
-
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const obs = obstacles[i];
                 obs.position.z += speed * 5;
                 if (obs.position.z > 5) {
                     scene.remove(obs);
                     obstacles.splice(i, 1);
-                } else {
-                    // collision check
-                    if (Math.abs(obs.position.z - car.position.z) < 1.5 &&
-                        Math.abs(obs.position.x - car.position.x) < 0.5) {
-                        running = false;
-                        document.getElementById('overlay').textContent = 'Game Over';
-                    }
+                } else if (Math.abs(obs.position.z - car.position.z) < 1.5 &&
+                           Math.abs(obs.position.x - car.position.x) < 0.5) {
+                    running = false;
+                    gameOver = true;
+                    overlayElem.textContent = 'Game Over - Score: ' + Math.floor(score / 10) + ' - Tap or press space to restart';
                 }
             }
             renderer.render(scene, camera);
             requestAnimationFrame(update);
         }
-        requestAnimationFrame(update);
 
         function moveLeft() {
             if (currentLane > 0) {
@@ -119,7 +237,10 @@
         // keyboard controls
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft') moveLeft();
-            if (e.key === 'ArrowRight') moveRight();
+            else if (e.key === 'ArrowRight') moveRight();
+            else if (e.code === 'Space') {
+                if (!running) startGame();
+            }
         });
 
         // swipe controls
@@ -132,6 +253,8 @@
             if (Math.abs(dx) > 30) {
                 if (dx < 0) moveLeft();
                 else moveRight();
+            } else {
+                if (!running) startGame();
             }
         });
 
@@ -139,6 +262,10 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('mousedown', () => {
+            if (!running) startGame();
         });
     </script>
 </body>
