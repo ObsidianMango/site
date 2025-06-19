@@ -6,4 +6,5 @@ Feel free to customize the content and styles to match your branding.
 
 ## Included Demos
 
-- **Triple Lane Car Game** - A simple 3D driving demo found at `triple_lane_game.html` where you swipe or use arrow keys to dodge oncoming cars. The scene now features basic car models, dotted lane lines, trees, grass, and a slowly shifting blue/orange sky.
+
+- **Triple Lane Car Game** - A basic 3D driving demo found at `triple_lane_game.html` where you swipe or use arrow keys to dodge oncoming obstacles.
