@@ -16,12 +16,15 @@
             font-family: Arial, sans-serif;
             font-size: 24px;
             text-shadow: 0 0 5px #000;
+
             pointer-events: none;
         }
     </style>
 </head>
 <body>
+
     <div id="overlay">Tap or press space to start. Swipe or use arrow keys to change lanes</div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         const scene = new THREE.Scene();
@@ -123,8 +126,10 @@
             scene.add(tree);
         }
         for (let z = -10; z > -190; z -= 20) {
+
             createTree(-7 + Math.random() * 1, z);
             createTree(7 - Math.random() * 1, z - 10);
+
         }
 
         // car model
@@ -160,13 +165,15 @@
         camera.position.set(0, 4, 8);
         camera.lookAt(0, 0, 0);
 
+
         const overlayElem = document.getElementById('overlay');
         const obstacles = [];
         let lastSpawn = 0;
         const spawnInterval = 1200;
         const speed = 0.05;
         let currentLane = 1;
-        let running = false;
+
+        let running = true;
         let gameOver = false;
         let lastTime = 0;
         let score = 0;
@@ -185,6 +192,7 @@
             requestAnimationFrame(update);
         }
 
+
         function spawnObstacle() {
             const obs = createCar(0x00ff00);
             const lane = Math.floor(Math.random() * 3);
@@ -195,6 +203,7 @@
 
         function update(timestamp) {
             if (!running) return;
+            skyUniforms.time.value = timestamp / 1000;
             const dt = timestamp - lastTime;
             lastTime = timestamp;
             skyUniforms.time.value = timestamp / 1000;
@@ -213,13 +222,15 @@
                 } else if (Math.abs(obs.position.z - car.position.z) < 1.5 &&
                            Math.abs(obs.position.x - car.position.x) < 0.5) {
                     running = false;
+                    document.getElementById('overlay').textContent = 'Game Over';
                     gameOver = true;
                     overlayElem.textContent = 'Game Over - Score: ' + Math.floor(score / 10) + ' - Tap or press space to restart';
                 }
             }
             renderer.render(scene, camera);
             requestAnimationFrame(update);
-        }
+
+
 
         function moveLeft() {
             if (currentLane > 0) {
@@ -237,6 +248,7 @@
         // keyboard controls
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft') moveLeft();
+            if (e.key === 'ArrowRight') moveRight();
             else if (e.key === 'ArrowRight') moveRight();
             else if (e.code === 'Space') {
                 if (!running) startGame();
@@ -253,8 +265,10 @@
             if (Math.abs(dx) > 30) {
                 if (dx < 0) moveLeft();
                 else moveRight();
+
             } else {
                 if (!running) startGame();
+
             }
         });
 
@@ -263,6 +277,7 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
 
         window.addEventListener('mousedown', () => {
             if (!running) startGame();
